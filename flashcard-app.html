@@ -1158,11 +1158,12 @@ function renderAPIStackUI() {
     const hasKey = apiStack[api.key];
     const statusClass = hasKey ? 'ready' : 'warning';
     const statusText = hasKey ? '✓ Active' : (api.type === 'free' ? '✓ Enabled' : '◯ Optional');
+    const managed = (API_STACK[key] && API_STACK[key].defaultEnabled) ? '<span class="managed-badge" style="background:#eef2ff;color:#3730a3;padding:2px 6px;border-radius:6px;font-size:11px;margin-left:6px">Managed</span>' : '';
     return '<div class="api-card ' + (hasKey ? 'active' : '') + '" onclick="openAPIConfig(\'' + key + '\')">' +
       '<div class="api-card-icon">' + api.icon + '</div>' +
       '<div class="api-card-name">' + api.name + '</div>' +
       '<div class="api-card-status ' + statusClass + '">' +
-      '<span>' + statusText + '</span><br>' +
+      '<span>' + statusText + '</span>' + managed + '<br>' +
       '<span class="feature-badge ' + (api.type === 'free' ? 'free' : 'pro') + '">' + api.type.toUpperCase() + '</span>' +
       '</div></div>';
   }).join('');
@@ -1306,40 +1307,29 @@ function chooseBestAIProvider(text) {
 
 async function testAPI(provider) {
   const key = document.getElementById('temp-api-key').value.trim();
-  if (!key) {
-    alert('Please enter an API key first.');
-    return;
-  }
-
   const testBtn = document.querySelector('.modal-actions button[onclick*="testAPI"]');
-  const originalText = testBtn.textContent;
-  testBtn.textContent = 'Testing...';
-  testBtn.disabled = true;
-
+  const originalText = testBtn ? testBtn.textContent : 'Test API';
+  if (testBtn) { testBtn.textContent = 'Testing...'; testBtn.disabled = true; }
   try {
-    let result;
-    switch (provider) {
-      case 'google_gemini':
-        // Simple test prompt
-        console.log('Testing Gemini API with key:', key.substring(0, 10) + '...');
-        console.log('Opening browser DevTools (F12) → Console tab to see detailed logs...');
-        result = await callGoogleGemini(key, 'Return a JSON object with one field "test" set to "success"', 'You are a helpful assistant. Always respond with valid JSON.');
-        console.log('Gemini test result:', result);
-        if (result && result.test === 'success') {
-          alert('✅ Gemini API test successful!');
-        } else {
-          throw new Error('Unexpected response format: ' + JSON.stringify(result));
-        }
-        break;
-      default:
-        alert('Test not available for this provider.');
+    const prompt = 'Return a JSON object with one field "test" set to "success"';
+    const resp = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, prompt, options: {}, overrideKey: key || undefined })
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+      console.log('API test response:', data);
+      alert('✅ API test successful — response returned. See console for details.');
+    } else {
+      console.error('API test failed:', data);
+      alert('❌ API test failed: ' + (data.error || JSON.stringify(data)));
     }
   } catch (error) {
     console.error('API test error:', error);
-    alert('❌ API test failed: ' + error.message + '\n\nCheck the browser console (F12) for detailed error logs.');
+    alert('❌ API test failed: ' + String(error));
   } finally {
-    testBtn.textContent = originalText;
-    testBtn.disabled = false;
+    if (testBtn) { testBtn.textContent = originalText; testBtn.disabled = false; }
   }
 }
 

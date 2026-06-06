@@ -1,13 +1,45 @@
+// In-memory rate limiter map: { ip: { tokens, lastRefill } }
+const RATE_LIMIT = 60; // requests
+const RATE_PERIOD = 60 * 1000; // per minute
+const buckets = new Map();
+
+function getClientIp(req) {
+  return req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+}
+
 export default async function handler(req, res) {
   // Multi-provider proxy for AI generation. Expects JSON { provider, prompt, options }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const { provider = 'openai', prompt, options = {} } = req.body || {};
   if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
 
+  // Simple token-bucket rate limiting per IP (best-effort on serverless)
+  const ip = getClientIp(req);
+  const now = Date.now();
+  let bucket = buckets.get(ip);
+  if (!bucket) {
+    bucket = { tokens: RATE_LIMIT, last: now };
+    buckets.set(ip, bucket);
+  }
+  const elapsed = now - bucket.last;
+  const refill = Math.floor(elapsed / RATE_PERIOD) * RATE_LIMIT;
+  if (refill > 0) {
+    bucket.tokens = Math.min(RATE_LIMIT, bucket.tokens + refill);
+    bucket.last = now;
+  }
+  if (bucket.tokens <= 0) {
+    console.warn(`Rate limit exceeded for ${ip}`);
+    return res.status(429).json({ error: 'Rate limit exceeded' });
+  }
+  bucket.tokens -= 1;
+
+  console.log(`Proxy request from ${ip} -> provider=${provider} promptLen=${prompt.length}`);
+
   try {
+    const overrideKey = req.body.overrideKey;
     // OpenAI
     if (provider === 'openai') {
-      const key = process.env.OPENAI_KEY;
+      const key = overrideKey || process.env.OPENAI_KEY;
       if (!key) return res.status(500).json({ error: 'OpenAI key not configured' });
 
       const payload = {
@@ -30,7 +62,7 @@ export default async function handler(req, res) {
 
     // Google Gemini (Generative Language API)
     if (provider === 'google_gemini') {
-      const key = process.env.GOOGLE_GEMINI_KEY;
+      const key = overrideKey || process.env.GOOGLE_GEMINI_KEY;
       if (!key) return res.status(500).json({ error: 'Google Gemini key not configured' });
       const model = options.model || 'models/text-bison-001';
       const body = { prompt: { text: prompt }, temperature: options.temperature || 0.2, maxOutputTokens: options.max_tokens || 512 };
@@ -45,7 +77,7 @@ export default async function handler(req, res) {
 
     // Anthropic Claude
     if (provider === 'anthropic_claude') {
-      const key = process.env.ANTHROPIC_KEY;
+      const key = overrideKey || process.env.ANTHROPIC_KEY;
       if (!key) return res.status(500).json({ error: 'Anthropic key not configured' });
       const model = options.model || 'claude-2.1';
       const payload = { model, prompt, max_tokens_to_sample: options.max_tokens || 512 };
@@ -60,7 +92,7 @@ export default async function handler(req, res) {
 
     // Hugging Face Inference
     if (provider === 'huggingface') {
-      const key = process.env.HUGGINGFACE_KEY;
+      const key = overrideKey || process.env.HUGGINGFACE_KEY;
       if (!key) return res.status(500).json({ error: 'Hugging Face key not configured' });
       const model = options.model || 'gpt2';
       const r = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
@@ -74,7 +106,7 @@ export default async function handler(req, res) {
 
     // Together AI
     if (provider === 'together_ai') {
-      const key = process.env.TOGETHER_AI_KEY;
+      const key = overrideKey || process.env.TOGETHER_AI_KEY;
       if (!key) return res.status(500).json({ error: 'Together AI key not configured' });
       const model = options.model || 'meta-llama/Llama-2-13b';
       const r = await fetch(`https://api.together.xyz/generative/${model}`, {
@@ -88,7 +120,7 @@ export default async function handler(req, res) {
 
     // Grok / xAI (best-effort)
     if (provider === 'grok') {
-      const key = process.env.GROK_KEY;
+      const key = overrideKey || process.env.GROK_KEY;
       if (!key) return res.status(500).json({ error: 'Grok key not configured' });
       const r = await fetch('https://api.grok.ai/v1/generate', {
         method: 'POST',
