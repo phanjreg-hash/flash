@@ -1,0 +1,16 @@
+{
+  "name": "FlashCard App",
+  "short_name": "FlashCard",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f5f5f0",
+  "theme_color": "#4f46e5",
+  "description": "AI-powered flashcards with spaced repetition, optimized for web, mobile, and tablet.",
+  "icons": [
+    {
+      "src": "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/brain.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
