@@ -1,0 +1,12 @@
+{
+  "openai": { "name": "OpenAI GPT-4o-mini", "icon": "🤖", "type": "free", "key": "openai_key", "defaultEnabled": true },
+  "google_gemini": { "name": "Google Gemini", "icon": "💎", "type": "free", "key": "google_gemini_key", "defaultEnabled": true },
+  "anthropic_claude": { "name": "Anthropic Claude", "icon": "🧠", "type": "free", "key": "anthropic_claude_key", "defaultEnabled": false },
+  "grok": { "name": "Grok (xAI)", "icon": "🚀", "type": "free", "key": "grok_key", "defaultEnabled": false },
+  "together_ai": { "name": "Together AI", "icon": "🤝", "type": "free", "key": "together_ai_key", "defaultEnabled": false },
+  "huggingface": { "name": "Hugging Face", "icon": "🤗", "type": "free", "key": "huggingface_key", "defaultEnabled": false },
+  "google_tts": { "name": "Text-to-Speech", "icon": "🔊", "type": "optional", "key": "google_tts_key", "defaultEnabled": false },
+  "unsplash": { "name": "Unsplash Images", "icon": "🖼️", "type": "free", "key": "unsplash_key", "defaultEnabled": false },
+  "serper": { "name": "Web Search", "icon": "🔍", "type": "optional", "key": "serper_key", "defaultEnabled": false },
+  "youtube": { "name": "YouTube", "icon": "▶️", "type": "optional", "key": "youtube_key", "defaultEnabled": false }
+}

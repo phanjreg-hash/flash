@@ -1096,26 +1096,26 @@ function getPreviewIntervals(sched) {
 }
 
 // ─── API STACK MANAGEMENT ──────────────────────────────────────────────────────
-const API_STACK = {
-  openai: { name: 'OpenAI GPT-4o-mini', icon: '🤖', type: 'free', key: 'openai_key' },
-  google_gemini: { name: 'Google Gemini', icon: '💎', type: 'free', key: 'google_gemini_key' },
-  anthropic_claude: { name: 'Anthropic Claude', icon: '🧠', type: 'free', key: 'anthropic_claude_key' },
-  grok: { name: 'Grok (xAI)', icon: '🚀', type: 'free', key: 'grok_key' },
-  together_ai: { name: 'Together AI', icon: '🤝', type: 'free', key: 'together_ai_key' },
-  huggingface: { name: 'Hugging Face', icon: '🤗', type: 'free', key: 'huggingface_key' },
-  google_tts: { name: 'Text-to-Speech', icon: '🔊', type: 'optional', key: 'google_tts_key' },
-  unsplash: { name: 'Unsplash Images', icon: '🖼️', type: 'free', key: 'unsplash_key' },
-  serper: { name: 'Web Search', icon: '🔍', type: 'optional', key: 'serper_key' },
-  youtube: { name: 'YouTube', icon: '▶️', type: 'optional', key: 'youtube_key' }
-};
-
+// Load provider defaults from `api.defaults.json` and merge with any stored user config
+let API_STACK = {};
 let apiStack = {};
 
-function loadAPIStack() {
-  if (currentUser) {
-    const stored = localStorage.getItem('flashcard_api_stack_' + currentUser.id);
-    apiStack = stored ? JSON.parse(stored) : {};
+async function loadAPIStack() {
+  let defaults = {};
+  try {
+    const res = await fetch('/api.defaults.json');
+    if (res.ok) defaults = await res.json();
+  } catch (e) {
+    console.warn('Could not load api.defaults.json', e);
   }
+
+  const storageKey = currentUser ? 'flashcard_api_stack_' + currentUser.id : 'flashcard_api_stack';
+  const stored = localStorage.getItem(storageKey);
+  const storedObj = stored ? JSON.parse(stored) : {};
+
+  // Merge defaults with stored user config (user overrides defaults)
+  API_STACK = defaults;
+  apiStack = Object.assign({}, defaults, storedObj);
 }
 
 function saveAPIStack() {
